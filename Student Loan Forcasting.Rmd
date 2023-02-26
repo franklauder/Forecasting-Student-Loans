@@ -16,11 +16,7 @@ editor_options:
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-
-
-
 # Introduction
-
 
 <br/><br/>
 
@@ -32,7 +28,6 @@ disbursements from 2015 through 2020.
 The R programming language was use for this analysis.
 
 <br/><br/>
-
 
 ```{r}
 
@@ -68,7 +63,6 @@ library(pander)
 
 ```
 
-
 ```{r include=FALSE}
 
 
@@ -77,9 +71,6 @@ dl_loans<-readRDS("dl_loans")
 
 
 ```
-
-
-
 
 ```{r}
 
@@ -90,8 +81,6 @@ knitr::kable(head(dl_loans), "simple")
 
 
 ```
-
-
 
 ```{r}
 
@@ -105,8 +94,6 @@ describe(dl_loans)
 
 ```
 
-
-
 ```{r}
 
 
@@ -117,10 +104,7 @@ pander(summary(dl_loans))
 
 ```
 
-
-
-
- view structure of data frame
+view structure of data frame
 
 ```{r}
 
@@ -133,7 +117,6 @@ str(dl_loans)
 
 ```
 
-
 # Data Preparation
 
 <br/><br/>
@@ -142,7 +125,6 @@ There are three terms that span twelve months of the academic calendar.
 The academic calendar and the term start months are displayed below.
 
 <br/><br/>
-
 
 ```{r}
 
@@ -179,9 +161,7 @@ kable_styling(
 
 ```
 
-
 <br/><br/>
-
 
 ```{r}
 
@@ -196,21 +176,14 @@ college_calendar %>%
 
 ```
 
-
-
 <br/><br/>
 
 ## Aggregate Data
 
-
 The daily transactions will be aggregated monthly to prepare the the
 data for forecasting.
 
-
 <br/><br/>
-
-
-
 
 ```{r}
 
@@ -225,9 +198,7 @@ dl_month<-dl_loans  %>%
 
 ```
 
-
 <br/><br/>
-
 
 ```{r}
 
@@ -240,7 +211,6 @@ pander(summary(dl_month),caption= "Table 2 Data Summary")
 
 ```
 
-
 <br/><br/>
 
 The summary of the monthly aggregated data shows 9/1/2015 as the start
@@ -250,9 +220,6 @@ missing value (NA). This missing value will have to be removed before a
 forecast can be generated.
 
 <br/><br/>
-
-
-
 
 ```{r}
 
@@ -272,7 +239,6 @@ remove NA's from data set
 
 <br/><br/>
 
-
 ```{r}
 
 
@@ -283,9 +249,7 @@ dl_month_2<-na.omit(dl_month_2)
 
 ```
 
-
 <br/><br/>
-
 
 ```{r}
 
@@ -297,16 +261,12 @@ pander(summary(dl_month_2), caption="Table 3 Monthly Data Summary")
 
 ```
 
-
-
-
 <br/><br/>
 
 The summary of the monthly data frame in *Table 3* now has 1/1/2016 as
 the start date and the missing value has been removed.
 
 <br/><br/>
-
 
 dispaly first twelve months of the data set.
 
@@ -326,7 +286,6 @@ head(dl_month_2, n=12) %>%
 
 
 ```
-
 
 <br/><br/>
 
@@ -378,9 +337,1072 @@ pander(ts_info(ts_dl), caption="Table 5: Time Series Object")
 
 <br/><br/>
 
+The data is confirmed as a time series object.
+
+<br/><br/>
+
+# Visualizing TS object.
+
+<br/><br/>
+
+<br/><br/>
+
+Our first visualization of a tine series object will be a decomposition.
+Decomposition presents a time series object as a combination of level,
+trend, seasonality, and noise components.
+
+-   Level: Is the average value in the series.
+
+-   Trend: Is the increasing or decreasing value in the series.
+
+-   Seasonality: The repeating short-term cycle in the series.
+
+-   Noise: The random variation in the series.
+
+Level, Trend, and Seasonality are the time series components that have
+consistency or recurrence and can be described and modeled.
+
+Noise is a component of the time series that cannot be directly modeled.
+
+[How to Decompose Time Series Data Trend and
+Seasonality](https://machinelearningmastery.com/decompose-time-series-data-trend-seasonality/)
+
+<br/><br/>
+
+```{r}
+
+
+
+ts_decompose(ts_dl)
+
+
+
+```
+
+
+
+
+<br/><br/>
+
+The decomposed time series indicates the series is not increasing over
+time, so no trend exists.
+
+The peaks appear to occur around the same period each year indicating
+the series may be seasonal.
+
+The random component or noise exhibit periods of high variability in the
+middle of the time series and lesser variability at the end of the
+series. This variability in the data cannot be explained by the model
+though it's possible it may hold additional information about the model.
+
+<br/><br/>
+
+<br/><br/>
+
+```{r fig.cap="Figure 2"}
+
+
+
+ts_seasonal(ts_dl, type = "normal", title = "Seasonal Plot", Ygrid = TRUE,Xgrid = TRUE, last = NULL, palette = "Set1",palette_normal = "viridis")
+
+
+
+```
+
+<br/><br/>
+
+<br/><br/>
+
+```{r fig.cap="Figure 3", message=FALSE, warning=FALSE}
+
+
+ts_heatmap(ts_dl)
+
+
+
+```
+
+
+
+<br/><br/>
+
+The seasonality plot (*Figure 2)* and heat map (*Figure 3*) for the
+monthly time series object clearly show peaks associated with
+seasonality though there are deviations. There appears to be multiple
+seasonal patterns. The fall term peaks occur during September or
+October, spring term peaks occur during January or February and Summer
+term peaks occur during June or July. This can be observed by hovering
+the cursor over the months of the heat map in *Figure 3.*
+
+<br/><br/>
+
+<br/><br/>
+
+
+# Forecast Models
+
+<br/><br/>
+
+##  Monthly TS Object
+
+<br/><br/>
+
+
+The monthly time series object will be split into training and testing
+partitions. A model will then be fit on the training partition and then
+check its performance by fitting it on the testing partition.
+
+Fitting is also known as prediction. When a model is fit to data it is
+being used to predict the outcome based on the data it is being applied
+to.
+
+<br/><br/>
+
+```{r}
+
+
+dl_split<-ts_split(ts_dl, sample.out=12)
+
+train<-dl_split$train
+
+test<-dl_split$test
+
+
+
+
+```
+
+<br/><br/>
 
 
 ```{r}
+
+
+ts_info(test)
+
+
+
+```
+
+<br/><br/>
+
+From the above outputs we see that the monthly TS object has been split
+into as training set of 48 observations and a test set of 12
+observations.
+
+<br/><br/>
+
+### Fit Training Set
+<br/><br/>
+
+A Auto Regressive Moving Average (ARIMA) model will be fit (prediction)
+on the training partition.
+
+
+```{r}
+
+
+md1<-auto.arima(train)
+options(scipen=999)
+
+
+
+
+```
+
+
+<br/><br/>
+
+md1 Model Summary
+
+<br/><br/>
+
+```{r}
+
+
+summary(md1)
+
+
+
+
+```
+
+
+
+
+<br/><br/>
+
+<br/><br/>
+
+The md1 model summary shows a SARIMA (0,0,1)(1,1,0)[12] was selected by
+the auto arima function. The first parenthesis contain the non-seasonal
+orders. Non-seasonal orders are regressed with previous values or
+errors.
+
+This SARIMA model only has one non-seasonal order, moving average (MA),
+which uses past forecast errors of the most recent time series value.
+Put another way, MA is the error between the actual value and the
+predicted value. Errors are also commonly known as residuals.
+
+The weighted average of the current error and past errors (determined by
+the order) are used in the model's forecast. For model md1 the moving
+average is of order 1 (MA1), thus the weighted average of the current
+error and the last error is calculated. Since this model has a
+periodicity of 12 (12 months), the error would be from the last month of
+the predicted observation.
+
+The second parentheses of the SARIAMA model includes the seasonal
+orders. Model md1 has two components, seasonal auto regression (SAR) and
+seasonal differences. The auto regressive component regresses the time
+series against itself at different lags or time steps. The current value
+depends on past values of itself.
+
+The model has a seasonal auto regressive order 1(SAR1) which means it
+regressed the time series against itself at a lag of 1 (one season
+back).
+
+The difference order means subtracting subsequent observations from one
+another. In the case of seasonal differences, subtracting subsequent
+seasonal observations from one another, i.e. difference of order 1 takes
+the difference between years 5 and 4. Model md1 has difference order of
+1, which means the difference is taken between the last two years, 2020
+and 2019.
+
+<br/><br/>
+
+### Training Set Residuals Analysis
+
+
+<br/><br/>
+
+Next step is to analyze the residuals of the trained SARIMA model. A
+residual is the difference between the actual observation and the fitted
+(predicted) value of the SARIMA model. The purpose of residual analysis
+is to test how well the predictions fare against the actual values.
+
+<br/><br/>
+
+
+
+```{r}
+
+
+pander(checkresiduals(md1, plot=FALSE), caption = "Table 5 train_model_1 Residual Check")
+
+
+
+```
+
+<br/><br/>
+
+<br/><br/>
+
+The Ljung-Box test has a p-value above 0.05 at 0.22. P-values above 0.05
+indicate residuals are not correlated and are white noise. Any
+auto-correlation can be attributed to chance.
+
+Residuals are useful in checking whether a model has captured the
+information in the data fairly well. White noise means that all the
+information in the time series has been used for the forecast. If the
+P-vale is below 0.05 then the residuals would be correlated which means
+there is still useful data that could have been used for the model.
+
+<br/><br/>
+
+
+```{r fig.cap="Figure 4 Residual Plot", message=FALSE, warning=FALSE}
+
+
+
+check_res(md1)
+
+
+```
+
+
+
+<br/><br/>
+
+The ACF plot (Figure 4) only has one lag outside the intervals (dotted
+lines) which means the residuals are white noise. If there were many
+lags outside the intervals then that would point to correlated residuals
+and information that could have been used for the forecast. The residual
+plot does not show any patterns though the peaks around 2018 and 2020
+could be an indication of outliers.
+
+<br/><br/>
+
+### Forecast Performance
+
+<br/><br/>
+
+
+
+```{r}
+
+
+fc <- forecast(md1, h = 12)
+
+
+
+```
+
+
+<br/><br/>
+
+The trained model was used to forecast future values. The performance of
+the the trained model will be compared to the fitted test data.
+
+Assessing model performance is accomplished by using the accuracy
+function.
+
+MAPE (Mean Absolute Percentage Error) will be the accuracy measure used
+for assessing the model performance. MAPE is the mean absolute
+difference between actual and predicted observations. The lower the MAPE
+the better the performance of the model is deemed to be.
+
+<br/><br/>
+
+
+
+```{r}
+
+
+pander(accuracy(fc, test), caption = "Table 6 Forecast_1 Accuracy")
+
+
+
+
+```
+
+
+
+<br/><br/>
+
+The MAPE from *Table 6* column 5 for the training set is 175.5 and 205.5
+for the test set. The higher MAPE for the test set indicates that the
+model might be over fitted. In other words the training set might not
+perform well on unseen data.
+
+<br/><br/>
+
+### Forecast-Full TS object
+
+<br/><br/>
+
+The complete time series data will be used to forecast. June will be the
+month that is focused on for the forecast.
+
+
+
+
+
+```{r}
+
+
+md2<-auto.arima(ts_dl)
+
+
+
+```
+
+<br/><br/>
+
+
+```{r}
+
+
+
+pander(checkresiduals(md2, plot=FALSE), caption = "Table 6 Full model residuals")
+
+
+```
+
+
+
+br/><br/>
+
+<br/><br/>
+
+Checking the residual results it can bee seen that the p value is a very
+large value at 0.578, a strong indicator that the residuals are white
+noise. The ACF plot has all lags within the the dashed lines.
+
+<br/><br/>
+
+<br/><br/>
+
+```{r}
+
+
+fc2<-forecast(md2, h=12)
+
+
+
+
+```
+
+<br/><br/>
+
+```{r fig.cap="Figure 6: Forecast Plot"}
+
+
+plot_forecast(fc2)
+
+
+
+
+```
+
+
+<br/><br/>
+
+
+Convert forecasts to data frames
+
+<br/><br/>
+
+
+
+
+```{r}
+
+
+
+
+fc2_df <- cbind("Month" = rownames(as.data.frame(fc2)), as.data.frame(fc2))  #Creating a data frame
+names(fc2_df) <- gsub(" ", "_", names(fc2_df))  # Removing whitespace from column names
+
+
+```
+
+<br/><br/>
+
+```{r}
+
+
+
+fc2_df %>%
+  kbl(caption="Table 7 Forecast Results 12 Months Out") %>%
+  kable_paper("striped", full_width = F) %>%
+  column_spec(3:5, bold = T) %>%
+  row_spec(6, bold = T, color = "white", background = "#6666FF")
+
+
+```
+
+
+
+
+<br/><br/>
+
+Viewing the forecast plot we see the seasonal peaks follow the same
+pattern as historical seasonal peaks of the time series data.
+
+Analyzing the forecast results in table 7, the result for June appears
+to be low based on historical data. The Point forecast for June is
+roughly two million lower than past seasonal values. This might be a
+result of variance in disbursement peaks. The largest disbursement
+commonly occurs a couple weeks after the start of a term. Actual time of
+the first disbursement for a term has varied over the past years due to
+institutional decisions or Department of Education changes. Thus the
+first disbursement of a term has fallen on either the last week of a
+month or the first week of a month. This could be affecting the forecast
+of the time series. Too alleviate this the data will be prepared
+differently so as to take multiple seasonality into consideration.
+
+<br/><br/>
+
+
+## Weekly Aggregation TS Object
+
+<br/><b/>
+
+The following preparation steps will aggregate the data by the last week
+of each month for each year. Though the first and largest disbursements
+for the beginning of each term can occur the first week of a month or
+last week of a month terms start at the beginning of a month. Due to
+this we will aggregate monthly disbursements based on the last week of
+each month.
+
+<br/><b/>
+
+### Data Preparation
+
+<br/><b/>
+
+The first step in the data preparation process will be aggregating the
+dl_loans data set by week instead of month.
+
+
+<br/><b/>
+
+
+
+
+
+
+
+
+```{r}
+
+
+
+
+dl_week <- dl_loans %>%
+  group_by(week = floor_date(To_Bus_Disb_Date, "1 week")) %>%
+  summarise(tot_disb = sum(net_amt))
+
+
+```
+
+<br/><br/>
+
+```{r}
+
+
+
+pander(summary(dl_week), caption="Table 8. Summary dl_week Data Frame")
+
+
+
+```
+
+<br/><br/>
+
+The summary from *Table 8* shows there is one NA. This will be removed.
+
+<br/><br/>
+
+
+
+```{r}
+
+
+dl_week_2<-na.omit(dl_week)
+
+
+
+```
+
+
+
+<br/><br/>
+
+```{r}
+
+
+pander(summary(dl_week_2), caption="Table 9: Summary dl_week_2 Data Frame-NA's Omited")
+
+
+
+```
+
+
+
+<br/><br/>
+
+*Table 9 shows the NA has been removed.*
+
+The data set will be filtered so the beginning week will be after
+12/31/2015
+
+```{r}
+
+
+
+dl_week_2<-dl_week_2 %>% 
+  filter(week > '2015-12-31')
+
+
+
+```
+
+
+<br/><br/>
+
+<br/><br/>
+
+
+```{r}
+
+
+head(dl_week_2, n=20) %>%
+  kbl(caption="Table 10  First 20 Rows dl_week_2") %>%
+  kable_classic(full_width=F, html_font = "Cambria")
+
+
+
+```
+
+
+
+<br/><br/>
+
+*Table 10* shows that the data now starts on 1/3/2016 is aggregated by
+week.
+
+<br/><br/>
+
+We will now calculate the number of weeks in each year to determine if
+there any differences.
+
+<br/><br/>
+
+Weeks disbursements occurred 2016
+
+<br/><br/>
+
+
+
+```{r}
+
+
+
+
+dl_week_16<-dl_week_2 %>% 
+  filter(week < '2017-01-01')
+
+
+nrow(dl_week_16) #Number of weeks disbursements occured  
+
+
+
+```
+
+
+<br/><br/> 
+
+
+
+Weeks disbursements occurred 2017
+
+<br/><br/>
+
+
+```{r}
+
+
+dl_week_17<-dl_week_2 %>% 
+  filter(week > '2016-12-31', week < '2018-01-01')
+# Number of weeks disbursements occured
+nrow(dl_week_17)
+
+
+
+
+```
+
+
+<br/><br/>
+
+Weeks disbursements occurred 2018
+
+<br/><br/>
+
+
+```{r}
+
+
+
+#filter year 2018
+dl_week_18<- dl_week_2 %>% 
+  filter(week > '2017-12-31', week < '2019-01-01')
+
+#Number of weeks disbursements occured
+nrow(dl_week_18)
+
+
+
+```
+
+
+<br/><br/>
+
+Weeks disbursements occurred 2019
+
+<br/><br/>
+
+
+```{r}
+
+
+
+#filter year 2019
+dl_week_19<-dl_week_2 %>% 
+  filter(week > '2018-12-31', week < '2020-01-01')
+#Number of weeks disbursements occurred
+pander(nrow(dl_week_19))
+
+
+
+
+```
+
+
+<br/><br/> 
+
+
+Weeks disbursements occurred 2020
+
+<br/><br/>
+
+
+
+
+
+
+```{r}
+
+
+
+#filter year 2020
+dl_week_20<-dl_week_2 %>% 
+  filter(week > '2019-12-31', week < '2021-01-01')
+
+#Number of weks disbursements occured
+nrow(dl_week_20)
+
+
+
+
+```
+
+<br/><br/>
+
+Number of weeks in which disbursements occurred vary for each year
+except for 2016 and 2020.
+
+The difference between the number of weeks disbursements occurred among
+the academic years is considered irregular frequencies. This occurs due
+to disbursements not occurring every week. These weeks can vary year to
+year so are not consistent.
+
+This will will have a negative affect on forecasting. To fix this the
+date will be aggregated by the last week disbursements occurred in a
+month thus eliminating the irregular frequencies issue.
+
+
+<br/><br/>
+
+
+ We will use the XTS library for a solution.  
+
+
+<br/><br/>
+
+
+```{r}
+
+
+
+pander(summary(dl_week))
+
+
+
+
+```
+
+
+
+<br/><br/>
+
+The dl_week_2 data set will be transformed into an xts object.
+
+<br/><br/>
+
+
+```{r}
+
+
+
+library(xts)
+
+
+
+```
+
+
+
+```{r}
+
+
+
+
+
+dl_xts <- as.xts(dl_week_2[ , -1], order.by = dl_week_2$week)
+
+
+
+```
+
+
+<br/><br/>
+
+Class
+
+
+<br/><br/>
+
+
+
+```{r}
+
+class(dl_xts)
+
+
+
+```
+
+
+
+
+<br/><br/>
+
+Number of Months
+
+
+
+```{r}
+
+
+# Check months
+nmonths(dl_xts)
+
+
+
+```
+
+
+<br/><br/>
+
+Number of Weeks
+
+
+
+
+```{r}
+
+
+nweeks(dl_xts)
+
+
+
+```
+
+
+We now see the dl_xts data set is now a XTS object with 60 months and
+214 weeks.
+
+The next step will be aggregating the data by the last week of the
+month.
+
+<br/><br/>
+
+
+### Aggregate DATA by Last Week
+
+
+<br/><br/>
+
+The data will be aggregate by month using last week of the month
+disbursements occurred.
+
+<br/><br/>
+
+
+
+
+
+
+```{r}
+
+
+dl_xts_month <- to.period(dl_xts, period = "months", OHLC = TRUE, indexAt = "lastof")
+
+
+
+```
+
+<br/><br/>
+
+view last 12 months of data
+
+<br/><br/>
+
+
+```{r}
+
+
+
+pander(tail(dl_xts_month, n=12), caption="Table 11: Last 12 Rows for dl_xts_month")
+
+
+
+```
+
+
+<br/><br/>
+
+*Table 11* shows the the first 12 rows the converted data. The XTS
+function used for this process is usually a method for stock analysis
+though it is suitable for our purposes. The dl_xts_month data set has
+four columns. Open , High, Low. and Close. Since we are are aggregating
+by the last week of a month only the Close column is required.
+
+The data will be filtered so dl_xts close column is chosen.
+
+<br/><br/>
+
+```{r}
+
+
+dl_xts_month_last<-dl_xts_month[,4]
+
+
+
+```
+
+
+
+<br/><br/>
+
+
+View last 12 months of data
+
+<br/><br/>
+
+
+```{r}
+
+
+
+pander(head(dl_xts_month_last, n=12), caption = "Table 12: Last twelve Rows dl-xts_month_last")
+
+
+```
+
+
+
+<br/><br/>
+
+Table 12 now shows the data aggregated by month except now each months
+total disbursements reflects only the last week.
+
+<br/><br/>
+
+The Close column will be renamed so it is a better representation of the
+analysis being performed.
+
+<br/><br/>
+
+```{r}
+
+
+
+names(dl_xts_month_last)[names(dl_xts_month_last) == "dl_xts.Close"] <- "last_week_disb"
+
+
+
+```
+
+<br/><br/>
+
+change name of "dl_xts.close variable
+
+
+<br/><br/>
+
+```{r}
+
+
+
+
+pander(head(dl_xts_month_last, n=12), caption = "Table 13")
+
+
+
+```
+
+
+
+<br/><br/>
+
+check periodicity of data
+
+
+
+<br/><br/>
+
+
+```{r}
+
+
+periodicity(dl_xts_month_last)
+
+
+```
+
+
+
+
+
+
+<br/><br/>
+
+<br/><br/>
+
+XTS objects are not suitable for forecasting, so the dl_xts_month_last
+xts object will need to be transformed into a TS object.
+
+
+
+
+<br/><br/>
+
+This is accomplished by utilizing the TSSudio library
+
+
+<br/><br/>
+
+```{r}
+
+
+
+dl_ts <- xts_to_ts(dl_xts_month_last)
+
+
+```
+
+
+
+<br/><br/>
+
+Class-confirm dl_ts is a ts object
+
+
+<br/><br/>
+
+
+
+```{r}
+
+
+class(dl_ts)
+
+
+```
+
+
+
+<br/><br/>
+
+
+### Visualizing Weekly TS Object
+
+
+```{r}
+
 
 
 
@@ -404,7 +1426,10 @@ pander(ts_info(ts_dl), caption="Table 5: Time Series Object")
 
 
 
+
 ```{r}
+
+
 
 
 
@@ -424,6 +1449,7 @@ pander(ts_info(ts_dl), caption="Table 5: Time Series Object")
 
 
 ```
+
 
 
 
