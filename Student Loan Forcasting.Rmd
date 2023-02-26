@@ -1,0 +1,434 @@
+---
+title: "Student Loan Forecasting"
+author: "Frank Laudert"
+date: "2023-02-26"
+output:
+  html_document:
+    theme: cerulean
+    toc: true
+    toc_float: true
+editor_options:
+  markdown:
+    wrap: 72
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+
+# Introduction
+
+
+<br/><br/>
+
+The purpose of the time series analysis is to forecast total loan
+disbursements received at the beginning of each academic term. The
+federal direct loan data set includes daily transactions of loan
+disbursements from 2015 through 2020.
+
+The R programming language was use for this analysis.
+
+<br/><br/>
+
+
+```{r}
+
+
+
+
+
+library(dplyr)
+library(lubridate)
+library(plotly)
+library(ggplot2)
+library(stats)
+library(xts)
+library(zoo)
+library(TSstudio)
+library(forecast)
+library(plotly)
+library(gt)
+library(gtsummary)
+library(tidyverse)
+library(modelsummary)
+library(summarytools)
+library(Hmisc)
+library(xtable)
+library(stargazer)
+library(pander)
+
+
+
+
+
+
+
+```
+
+
+```{r include=FALSE}
+
+
+dl_loans<-readRDS("dl_loans")
+
+
+
+```
+
+
+
+
+```{r}
+
+
+
+
+knitr::kable(head(dl_loans), "simple")
+
+
+```
+
+
+
+```{r}
+
+
+
+
+
+
+describe(dl_loans)
+
+
+```
+
+
+
+```{r}
+
+
+
+pander(summary(dl_loans))
+
+
+
+```
+
+
+
+
+ view structure of data frame
+
+```{r}
+
+
+
+str(dl_loans)
+
+
+
+
+```
+
+
+# Data Preparation
+
+<br/><br/>
+
+There are three terms that span twelve months of the academic calendar.
+The academic calendar and the term start months are displayed below.
+
+<br/><br/>
+
+
+```{r}
+
+
+
+college_calendar <- tibble::tribble(
+       ~Month,    ~Term,
+  "September",   "Fall",
+    "October",   "Fall",
+   "November",   "Fall",
+   "December",   "Fall",
+    "January", "Spring",
+   "Feburary", "Spring",
+      "March", "Spring",
+      "April", "Spring",
+        "May", "Spring",
+       "June", "Summer",
+       "July", "Summer",
+     "August", "Summer"
+  )
+
+require(knitr)
+require(kableExtra)
+kable_styling(
+              kable(college_calendar, digits = 3, row.names = FALSE, align = "c",
+              caption = NULL, format = "html"),
+        bootstrap_options = c("striped", "hover", "condensed"),
+        position = "center", full_width = FALSE) 
+
+
+
+
+
+
+```
+
+
+<br/><br/>
+
+
+```{r}
+
+
+college_calendar %>% 
+  kbl(caption="Table 1 Academic Calendar") %>%
+  kable_classic("striped", full_width = T) %>%
+  row_spec(c(1,5,10), bold = T, color = "white", background = "#3399FF")
+
+
+
+
+```
+
+
+
+<br/><br/>
+
+## Aggregate Data
+
+
+The daily transactions will be aggregated monthly to prepare the the
+data for forecasting.
+
+
+<br/><br/>
+
+
+
+
+```{r}
+
+
+
+
+dl_month<-dl_loans  %>% 
+  group_by(month=floor_date(To_Bus_Disb_Date, "month")) %>%
+  summarise(disbursed=sum(net_amt))
+
+
+
+```
+
+
+<br/><br/>
+
+
+```{r}
+
+
+
+
+pander(summary(dl_month),caption= "Table 2 Data Summary")
+
+
+
+```
+
+
+<br/><br/>
+
+The summary of the monthly aggregated data shows 9/1/2015 as the start
+date and 12/1/2020 as the end date. The data will be filtered so the
+beginning date is 1/1/2016. The summary also shows that there is one
+missing value (NA). This missing value will have to be removed before a
+forecast can be generated.
+
+<br/><br/>
+
+
+
+
+```{r}
+
+
+
+
+dl_month_2<-dl_month %>% 
+  filter(month > '2015-12-31')
+
+
+
+```
+
+<br/><br/>
+
+remove NA's from data set
+
+<br/><br/>
+
+
+```{r}
+
+
+
+
+dl_month_2<-na.omit(dl_month_2)
+
+
+```
+
+
+<br/><br/>
+
+
+```{r}
+
+
+
+
+pander(summary(dl_month_2), caption="Table 3 Monthly Data Summary")
+
+
+```
+
+
+
+
+<br/><br/>
+
+The summary of the monthly data frame in *Table 3* now has 1/1/2016 as
+the start date and the missing value has been removed.
+
+<br/><br/>
+
+
+dispaly first twelve months of the data set.
+
+<br/><br/>
+
+```{r fig.cap="Table 4 First Twelve Months of dl_month_2"}
+
+
+
+
+head(dl_month_2, n=12) %>%
+  kbl(caption="Table 4: First Twelve Rows of Monthly Data") %>%
+  kable_classic(full_width=F, html_font = "Cambria")
+
+
+
+
+
+```
+
+
+<br/><br/>
+
+Viewing the first twelve rows of the monthly data frame from *Table 4*
+we can see that the data is now grouped into months.
+
+<br/><br/>
+
+## Time Series Object
+
+<br/><br/>
+
+The data now will be transformed into a ts (time series) object. This
+step prepares the data for forecasting.
+
+<br/><br/>
+
+Select the disbursed column from dl_month
+
+```{r}
+
+
+dl<-dl_month_2[,2]
+
+
+```
+
+Convert the dl data frame into a time series object
+
+```{r}
+
+ts_dl<-ts(dl, start=c(2016,1), end=c(2020,12), frequency = 12)
+
+
+
+
+```
+
+<br/><br/>
+
+```{r}
+
+
+pander(ts_info(ts_dl), caption="Table 5: Time Series Object")
+
+
+
+```
+
+<br/><br/>
+
+
+
+```{r}
+
+
+
+
+
+
+
+```
+
+
+
+```{r}
+
+
+
+
+
+
+
+```
+
+
+
+```{r}
+
+
+
+
+
+
+```
+
+
+
+```{r}
+
+
+
+
+
+
+
+```
+
+
+
+
+
+
+
+
