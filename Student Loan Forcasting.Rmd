@@ -1400,11 +1400,286 @@ class(dl_ts)
 
 ### Visualizing Weekly TS Object
 
+<br/><br/>
+
+
+
+```{r fig.cap="Figure 7 Time Series PLot"}
+
+
+
+ts_plot(dl_ts)
+
+
+
+
+```
+
+
+<br/><br/>
+
+<br/><br/>
+
+
+```{r fig.cap="Figure 8 Seasonal Plot"}
+
+
+
+
+ts_seasonal(dl_ts, type = "normal", title = NULL, Ygrid = TRUE,
+            Xgrid = TRUE, last = NULL, palette = "Set1",
+            palette_normal = "viridis")
+
+
+```
+
+
+<br/><br/>
+
+<br/><br/>
+
+
+
+```{r fig.cap="Figure 9 Heatmap", message=FALSE, warning=FALSE}
+
+
+
+ts_heatmap(dl_ts)
+
+
+
+
+```
+
+<br/><br/>
+
+The figure 8 Seasonal plot and figure 9 Heatmap clearly show only three
+seasonal peaks, Jan, Sept, and Jun.
+
+<br/><br/>
+
+
+### Split dl_ts data
+
+<br/><br/>
+
+The new ts object will be split into train and test sets.
+
+<br/><br/>
+
 
 ```{r}
 
 
 
+dl_part<-ts_split(dl_ts, sample.out=12)
+
+train_2<-dl_part$train
+
+test_2<-dl_part$test
+
+
+
+```
+
+
+<br/><br/>
+
+```{r}
+
+
+ts_info(train_2)
+
+
+
+```
+
+
+<br/><br/>
+
+
+```{r}
+
+
+
+
+ts_info(test_2)
+
+
+```
+
+<br/><br/>
+
+
+
+### Training Set Results and Residuals
+
+
+<br/><br/>
+
+The model will now be fit to the training set.
+
+<br/><br/>
+
+```{r}
+
+
+
+model_2<-auto.arima(train_2)
+options(scipen=999)
+
+
+```
+
+
+
+<br/><br/>
+
+```{r}
+
+
+
+pander(checkresiduals(model_2, plot=FALSE), caption = "Table 12 Residual Check model_train_2")
+
+
+```
+
+
+<br/><br/>
+
+
+```{r}
+
+
+
+check_res(model_2)
+
+
+
+
+```
+
+
+<br/><br/>
+
+The results of the SARIMA model from *Table 13* have no non-seasonal
+components and one seasonal component. The seasonal auto regressive
+component is of order one (SAR1). The model is regressing at one lag or
+one season back.
+
+Residual results have a p value that is very large at 0.578. This is
+strong indicator that the residuals are white noise. The ACF plot has
+all lags within the the dashed lines, confirming the large p-value.
+
+<br/><br/>
+
+The trained model will now be used to forecast.
+
+
+```{r}
+
+
+
+dl_fc <- forecast(model_2, h = 12)
+
+
+
+```
+
+
+
+<br/><br/>
+
+```{r}
+
+
+
+pander(accuracy(dl_fc, test_2), caption="Table 13 Accuracy forecast_train")
+
+
+```
+
+<br/><br/>
+
+*Table 13* shows a MAPE of 5042 for the training set and 2399 for the
+test set. The higher MAPE score for the training set is a good indicator
+that the model is not over fit though it may be under fit.
+
+<br/><br/>
+
+
+### Forecast on Full dl_ts TS object
+
+<br/><br/>
+
+The full data set will now be used for forecasting.
+
+<br/><br/>
+
+
+```{r}
+
+
+
+model_3<-auto.arima(dl_ts)
+
+
+
+
+```
+
+<br/><br/>
+
+
+
+```{r}
+
+
+
+pander(checkresiduals(model_3, plot=FALSE), caption = "Table 15 Residual Check full_model_3")
+
+
+
+```
+
+
+<br/><br/>
+
+```{r fig.cap="Figure 11 Residual Plot", message=FALSE, warning=FALSE}
+
+
+
+check_res(model_3)
+
+
+
+```
+
+<br/><br/>
+
+<br/><br/>
+
+
+
+The results from of the full SARIMA model ,presented in *Figure 11* ,
+have no non-seasonal components and two seasonal components, auto
+regressive and moving average. The seasonal auto regressive component is
+of order order one (SAR1). The model is regressing at one lag or one
+season back. The moving average component is of order one (SMA1). The
+weighted average is calculated by using current seasonal error and the
+last season error from the predicted observation.
+
+<br/><br/>
+
+The p-value for the full forecast model is extremely high at .73 a good
+sign that the residuals are white noise.
+
+<br/><br/>
+
+```{r}
+
+
+dl_fc2<-forecast(model_3, h=10)
 
 
 
@@ -1413,12 +1688,65 @@ class(dl_ts)
 ```
 
 
+<br/><br/>
+
+```{r fig.cap="Figure 12 Residual Plot Full Forecast"}
+
+
+
+
+plot_forecast(dl_fc2)
+
+
+
+
+```
+
+
+<br/><br/>
 
 ```{r}
 
 
+dl_fc2
 
 
+
+```
+
+
+<br/><br/>
+
+The TS object will be transformed to a data frame for better viewing in
+table form.
+
+<br/><br/>
+
+
+
+
+```{r}
+
+
+dl_fc2_df <- cbind("Month" = rownames(as.data.frame(dl_fc2)), as.data.frame(dl_fc2))  #Creating a data frame
+names(dl_fc2_df) <- gsub(" ", "_", names(dl_fc2_df))  # Removing whitespace from column names
+
+
+
+```
+
+<br/><br/>
+
+<br/><br/>
+
+```{r}
+
+
+dl_fc2_df %>%
+  kbl(caption="Table 15 Forecast Results 12 Months Out") %>% 
+  kable_paper("striped", full_width = F) %>%
+  column_spec(3:5, bold = T) %>%
+  row_spec(6, bold = T, color = "white", background = "#3CC6CC")
 
 
 
@@ -1427,28 +1755,34 @@ class(dl_ts)
 
 
 
-```{r}
+
+<br/><br/>
+
+The forecast plot has the seasonal peaks reflected in the historical
+values of the time series.
+
+<br/><br/>
+
+The forecast results in table 16 are in step with the historical data.
+The June point forecast is close to the amounts in seasonal historical
+data. Based on the forecast we are 80% confident that June's loan
+disbursements will fall between 3.3 million and 6.3 million, again well
+within historical disbursement data.
 
 
+<br/><br/>
+
+# Conclusion
 
 
+Based on the results of the forecast after the data was aggregated by
+the last week of disbursements for each month the model points to
+accurate forecast for future years.
 
-
-
-
-```
-
-
-
-```{r}
-
-
-
-
-
-
-
-```
+Disbursement patterns may change in future years and as such the model
+will require updating. There are other methods such as the mstl()
+function and TBATS models that can be used for future time series data
+that exhibits Multiple Seasonal patterns.
 
 
 
